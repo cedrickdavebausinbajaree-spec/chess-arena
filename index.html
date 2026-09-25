@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Arena Pro • Ultimate Production Edition</title>
+    <!-- PWA Web App Manifest -->
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogIm5hbWUiOiAiQ2hlc3MgQXJlbmEgUHJvIiwgInNob3J0X25hbWUiOiAiQ2hlc3NBcmVuYSIsICJzdGFydF91cmwiOiAiLi8iLCAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwgImJhY2tncm91bmRfY29sb3IiOiAiIzBjMGIwYSIsICJ0aGVtZV9jb2xvciI6ICIjMTQxMjEwIn0=">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Stable Chess.js v0.10.3 Browser Build -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- Stockfish Engine Wrapper Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
+    <style>
+        body { background-color: #0c0b0a; color: #9e9e9e; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        /* Board Themes */
+        .theme-wood-dark { background-color: #b58863; }
+        .theme-wood-light { background-color: #f0d9b5; }
+        .theme-emerald-dark { background-color: #1b4d3e; }
+        .theme-emerald-light { background-color: #e0f2fe; }
+        .theme-midnight-dark { background-color: #1e293b; }
+        .theme-midnight-light { background-color: #94a3b8; }
+        .theme-neon-dark { background-color: #2d0b5a; }
+        .theme-neon-light { background-color: #05d5ff; }
+
+        /* Hyper-Realistic 3D Sculpted Piece Styling */
+        .chess-piece {
+            font-size: clamp(2rem, 8vw, 3.2rem);
+            line-height: 1;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), filter 0.18s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.4));
+        }
+        
+        .chess-piece.white-piece {
+            color: #ffffff;
+            text-shadow: 0 1px 0 #e5e7eb, 0 2px 0 #d1d5db, 0 3px 0 #9ca3af, 0 4px 1px rgba(0,0,0,0.3), 0 0 16px rgba(255,255,255,0.6);
+        }
+
+        .chess-piece.black-piece {
+            color: #0f172a;
+            text-shadow: 0 1px 0 #334155, 0 2px 0 #1e293b, 0 3px 2px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .chess-piece:hover { transform: translateY(-3px) scale(1.06); filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.5)); }
+
+        /* Realistic 3D Lobby Card Effects */
+        .lobby-card-3d {
+            background: linear-gradient(145deg, #181613, #110f0e);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            border: 1px solid #282421;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+        }
+        .lobby-card-3d:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 32px -6px rgba(0, 0, 0, 0.8), 0 10px 14px -6px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            border-color: #3e3833;
+        }
+
+        .lobby-featured-card {
+            background: linear-gradient(135deg, #19311c 0%, #122014 50%, #0c0b0a 100%);
+            box-shadow: 0 12px 30px -4px rgba(16, 185, 129, 0.2), 0 10px 15px -5px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(52, 211, 153, 0.25);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .lobby-featured-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 36px -4px rgba(16, 185, 129, 0.3), 0 12px 18px -6px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(52, 211, 153, 0.4);
+            border-color: rgba(52, 211, 153, 0.6);
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #121110; }
+        ::-webkit-scrollbar-thumb { background: #2a2724; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 sm:p-4 select-none">
+
+    <!-- Header Navigation -->
+    <header class="w-full max-w-5xl mx-auto flex justify-between items-center py-3 px-4 sm:px-5 bg-[#141210] rounded-xl border border-[#262320] shadow-xl">
+        <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchView('view-lobby')">
+            <span class="text-2xl animate-pulse text-emerald-400">♚</span>
+            <h1 class="text-sm sm:text-base font-extrabold tracking-widest text-white">CHESS<span class="text-emerald-500">ARENA PRO</span></h1>
+            <span id="connection-status" class="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Connecting...</span>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button onclick="openSettingsModal()" class="text-xs bg-[#0c0b0a] hover:bg-[#262320] px-3 py-1.5 rounded-lg text-slate-300 font-semibold border border-[#262320] transition-all flex items-center gap-1 shadow-sm">⚙️ Settings</button>
+            <button onclick="openProfileModal()" class="text-xs bg-[#0c0b0a] hover:bg-[#262320] px-3 py-1.5 rounded-lg text-slate-300 font-semibold border border-[#262320] transition-all flex items-center gap-1 shadow-sm">👤 Profile</button>
+            <div id="user-badge" class="hidden text-xs bg-[#0c0b0a] px-3 py-1.5 rounded-lg border border-[#262320] sm:flex items-center gap-2 shadow-inner">
+                <span id="badge-avatar" class="text-sm">♔</span>
+                <span id="badge-name" class="font-bold text-white"></span>
+                <span class="text-[11px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-semibold" id="badge-elo">1200</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container Layout -->
+    <main class="w-full max-w-5xl mx-auto my-auto flex flex-col items-center justify-center py-4">
+
+        <!-- VIEW 1: LOGIN -->
+        <div id="view-login" class="w-full max-w-sm bg-[#141210] border border-[#262320] p-6 sm:p-7 rounded-2xl shadow-2xl text-center">
+            <div class="text-5xl mb-3 text-emerald-500 font-serif drop-shadow-md">♔</div>
+            <h2 class="text-base font-bold mb-1 text-white">Welcome Grandmaster</h2>
+            <p class="text-xs text-[#716d68] mb-5">Enter your player handle to access online matchmaking & bots.</p>
+            <input type="text" id="input-username" placeholder="Username (e.g. MagnusLite)..." class="w-full bg-[#0c0b0a] border border-[#262320] rounded-xl px-3.5 py-3 text-white mb-3 focus:outline-none focus:border-emerald-500 text-xs font-medium shadow-inner">
+            <button onclick="handleLogin()" class="w-full bg-[#567a32] hover:bg-[#486629] text-white font-bold py-3 rounded-xl transition-all shadow-lg text-xs">Enter Arena</button>
+        </div>
+
+        <!-- VIEW 2: LOBBY -->
+        <div id="view-lobby" class="hidden w-full max-w-md bg-[#141210] border border-[#282421] p-5 sm:p-6 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-[#262320]">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-black font-extrabold shadow-md">♟️</div>
+                    <div>
+                        <h2 class="text-xs font-bold text-white uppercase tracking-wider">Matchmaking Arena</h2>
+                        <span id="online-players-count" class="text-[10px] text-emerald-400 font-medium">1 Online in Queue</span>
+                    </div>
+                </div>
+                <button onclick="openGlobalLeaderboard()" class="text-xs bg-[#0c0b0a] hover:bg-[#262320] px-3 py-2 rounded-xl text-amber-400 font-semibold border border-[#262320] transition-all flex items-center gap-1.5 shadow-md">🏆 Leaderboard</button>
+            </div>
+
+            <!-- Global Time Control Selector -->
+            <div class="mb-4 bg-[#0c0b0a] p-3 rounded-xl border border-[#262320]">
+                <label class="text-[11px] text-slate-300 font-semibold block mb-1.5">⏱️ Choose Match Time Control:</label>
+                <select id="time-control-select" onchange="changeTimeControl(this.value)" class="w-full bg-[#141210] text-emerald-400 border border-[#282421] rounded-lg px-2.5 py-2 text-xs font-bold focus:outline-none shadow-inner">
+                    <option value="60|0">1 min (Bullet)</option>
+                    <option value="180|2">3 min + 2s (Blitz)</option>
+                    <option value="300|0">5 min (Blitz)</option>
+                    <option value="600|0" selected>10 min (Rapid Standard)</option>
+                    <option value="900|10">15 min + 10s (Rapid Long)</option>
+                    <option value="0|0">Unlimited Casual (No Clock)</option>
+                </select>
+            </div>
+            
+            <div class="space-y-3.5">
+                <!-- Nationwide Quick Match -->
+                <div class="p-4 rounded-xl lobby-featured-card">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <h3 class="font-bold text-white text-xs flex items-center gap-1.5">⚡ Quick Online Match 🌐</h3>
+                        <span class="text-[9px] bg-emerald-400 text-black font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide">LIVE</span>
+                    </div>
+                    <p class="text-[11px] text-[#cbd5e1] mb-3 leading-relaxed">Instantly match online with players or fallback to AI engine.</p>
+                    <button onclick="startQuickMatchmaking()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-black font-extrabold py-2.5 rounded-lg text-xs transition-all shadow-[0_4px_12px_rgba(16,185,129,0.4)] flex items-center justify-center gap-2 transform active:scale-[0.98]">
+                        <span>Find Online Opponent Now</span>
+                    </button>
+                </div>
+
+                <!-- Bot Selection Card -->
+                <div class="p-4 rounded-xl lobby-card-3d">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-white text-xs flex items-center gap-1.5">🤖 Play vs Stockfish Engine</h3>
+                        <select id="bot-difficulty" class="bg-[#141210] text-emerald-400 border border-[#332e2a] rounded-lg px-2 py-1 text-[11px] font-semibold focus:outline-none shadow-inner">
+                            <option value="1">Level 1 (Beginner)</option>
+                            <option value="5" selected>Level 5 (Intermediate)</option>
+                            <option value="10">Level 10 (Master)</option>
+                        </select>
+                    </div>
+                    <button onclick="startBotGame()" class="w-full bg-gradient-to-r from-[#567a32] to-[#486629] hover:from-[#628a39] hover:to-[#527430] text-white font-bold py-2.5 rounded-lg text-xs transition-all shadow-md active:scale-[0.98]">Start Stockfish Match</button>
+                </div>
+
+                <!-- Local Pass & Play -->
+                <div class="p-4 rounded-xl lobby-card-3d">
+                    <h3 class="font-bold text-white mb-1 text-xs flex items-center gap-1.5">👥 Offline Pass & Play</h3>
+                    <p class="text-[11px] text-[#8c867f] mb-2.5">Face off locally on the same device screen.</p>
+                    <button onclick="openOfflineMultiplayerSetup()" class="w-full bg-[#201d1a] hover:bg-[#2b2723] text-slate-200 font-bold py-2 rounded-lg text-xs transition-all border border-[#332e2a] shadow-inner active:scale-[0.98]">Local 2P Setup</button>
+                </div>
+
+                <!-- Custom Firebase Room -->
+                <div class="p-4 rounded-xl lobby-card-3d">
+                    <h3 class="font-bold text-white mb-1 text-xs flex items-center gap-1.5">🔑 Custom Private Room</h3>
+                    <p class="text-[11px] text-[#8c867f] mb-2.5">Create private room codes to play with friends.</p>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="createOnlineRoom()" class="w-full bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition-all shadow-md active:scale-[0.98]">Create Private Room</button>
+                        <div class="flex gap-2">
+                            <input type="text" id="input-room-code" placeholder="Enter Room Code" class="flex-1 bg-[#0c0b0a] border border-[#282421] rounded-lg px-3 py-1.5 text-xs text-white uppercase focus:outline-none focus:border-blue-500 font-mono shadow-inner">
+                            <button onclick="joinOnlineRoom()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-1.5 rounded-lg text-xs transition-all shadow active:scale-[0.98]">Join</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2.2: MATCHMAKING SEARCH MODAL -->
+        <div id="view-matchmaking" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="w-full max-w-sm bg-[#141210] border border-[#262320] p-7 rounded-2xl shadow-2xl text-center">
+                <div class="text-4xl mb-3 text-emerald-500 animate-spin">⏳</div>
+                <h3 class="text-sm font-bold text-white mb-1">Searching Online Queue...</h3>
+                <p id="matchmaking-status-text" class="text-xs text-[#716d68] mb-5">Looking for available players online...</p>
+                <button onclick="cancelMatchmaking()" class="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-bold py-2.5 rounded-xl text-xs transition-all">Cancel Search</button>
+            </div>
+        </div>
+
+        <!-- VIEW 2.5: OFFLINE SETUP MODAL -->
+        <div id="view-offline-setup" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="w-full max-w-sm bg-[#141210] border border-[#262320] p-6 rounded-2xl shadow-2xl">
+                <h3 class="text-xs font-bold text-white mb-3 uppercase tracking-wider">Offline Match Configuration</h3>
+                <div class="space-y-3 mb-5">
+                    <div>
+                        <label class="text-[11px] text-[#716d68] block mb-1">White Pieces:</label>
+                        <input type="text" id="p1-name-input" readonly class="w-full bg-[#0c0b0a] border border-[#262320] rounded-lg px-3 py-2 text-xs text-emerald-400 font-bold">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-[#716d68] block mb-1">Black Pieces Opponent:</label>
+                        <input type="text" id="p2-name-input" placeholder="Challenger name..." class="w-full bg-[#0c0b0a] border border-[#262320] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="startOfflineMultiplayerGame()" class="flex-1 bg-[#567a32] hover:bg-[#486629] text-white font-bold py-2.5 rounded-lg text-xs transition-all">Begin Match</button>
+                    <button onclick="closeOfflineSetup()" class="bg-[#262320] hover:bg-[#322e2a] text-slate-300 font-bold px-4 py-2.5 rounded-lg text-xs transition-all">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: GAME ARENA -->
+        <div id="view-game" class="hidden w-full flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6">
+            <!-- Board Container Section -->
+            <div class="flex flex-col w-full max-w-[420px]">
+                <!-- Opponent Card -->
+                <div class="w-full flex justify-between items-center bg-[#141210] px-3.5 py-2.5 rounded-t-xl border-t border-x border-[#262320] text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-6 h-6 rounded bg-[#262320] flex items-center justify-center font-bold text-white text-[10px]" id="opp-avatar">🤖</div>
+                        <div>
+                            <span id="opp-name" class="font-bold text-white">Opponent</span>
+                            <span id="opp-elo" class="text-[10px] text-[#716d68] ml-1">1200</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div id="opp-captured" class="text-xs tracking-tight text-amber-400/90 font-mono flex items-center gap-1"></div>
+                        <div id="opp-timer" class="font-mono text-xs font-bold text-white bg-[#0c0b0a] px-2 py-0.5 rounded border border-[#262320]">10:00</div>
+                    </div>
+                </div>
+
+                <!-- Center Play Area (Eval Bar + Board) -->
+                <div class="flex w-full aspect-square max-w-[420px]">
+                    <!-- Evaluation Bar -->
+                    <div class="w-3 bg-[#0c0b0a] border-y border-l border-[#262320] flex flex-col justify-end overflow-hidden">
+                        <div id="eval-fill" class="w-full bg-slate-200 transition-all duration-300" style="height: 50%;"></div>
+                    </div>
+
+                    <!-- Responsive Chess Board Grid -->
+                    <div id="chessboard-grid" class="flex-1 aspect-square grid grid-cols-8 grid-rows-8 border border-[#262320] relative shadow-2xl select-none">
+                        <!-- Dynamically populated via script -->
+                    </div>
+                </div>
+
+                <!-- Self Card -->
+                <div class="w-full flex justify-between items-center bg-[#141210] px-3.5 py-2.5 rounded-b-xl border-b border-x border-[#262320] text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-6 h-6 rounded bg-[#567a32] flex items-center justify-center font-bold text-white text-[10px]" id="self-avatar">👤</div>
+                        <div>
+                            <span id="self-name" class="font-bold text-white">You</span>
+                            <span id="self-elo" class="text-[10px] text-[#716d68] ml-1">1200</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div id="self-captured" class="text-xs tracking-tight text-amber-400/90 font-mono flex items-center gap-1"></div>
+                        <div id="self-timer" class="font-mono text-xs font-bold text-white bg-[#0c0b0a] px-2 py-0.5 rounded border border-[#262320]">10:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Panel Controls & Move Sheet -->
+            <div class="w-full max-w-[420px] lg:w-80 bg-[#141210] border border-[#262320] p-4 rounded-2xl flex flex-col justify-between h-[480px] shadow-xl">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-white">Match Center</span>
+                        <span id="mode-badge" class="text-[10px] bg-[#0c0b0a] text-[#716d68] px-2 py-0.5 rounded border border-[#262320]">Standard</span>
+                    </div>
+                    <div id="game-status" class="p-2.5 bg-[#0c0b0a] rounded-lg border border-[#262320] text-xs mb-3 font-semibold text-emerald-400 shadow-inner">Your turn to move.</div>
+                    
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[11px] text-[#716d68] font-semibold">Move Notation:</span>
+                        <div class="flex gap-2 text-[10px]">
+                            <button onclick="copyPGN()" class="text-emerald-400 hover:underline">Copy PGN</button>
+                            <span class="text-[#3a3632]">|</span>
+                            <button onclick="copyFEN()" class="text-emerald-400 hover:underline">Copy FEN</button>
+                        </div>
+                    </div>
+                    <div id="move-history" class="h-40 overflow-y-auto bg-[#0c0b0a] p-2 rounded-lg text-xs font-mono border border-[#262320] flex flex-col gap-1 shadow-inner"></div>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="flex gap-2">
+                        <button id="btn-undo" onclick="undoMove()" class="flex-1 bg-[#201d1a] hover:bg-[#2b2723] text-slate-300 border border-[#332e2a] font-semibold py-1.5 rounded-lg text-xs transition-all shadow-sm">↺ Takeback</button>
+                        <button onclick="toggleFlipBoard()" class="flex-1 bg-[#201d1a] hover:bg-[#2b2723] text-slate-300 border border-[#332e2a] font-semibold py-1.5 rounded-lg text-xs transition-all shadow-sm">🔄 Flip Board</button>
+                        <button id="btn-hint" onclick="requestEngineHint()" class="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 font-semibold py-1.5 rounded-lg text-xs transition-all shadow-sm">💡 Hint</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="offerDraw()" class="flex-1 bg-[#262320] hover:bg-[#322e2a] text-slate-300 font-semibold py-2 rounded-lg text-xs transition-all">Draw</button>
+                        <button onclick="leaveGame()" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-semibold py-2 rounded-lg text-xs transition-all">Resign</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAWN PROMOTION SELECTION MODAL -->
+        <div id="view-promotion-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-[#141210] border border-emerald-500/50 p-5 rounded-2xl shadow-2xl text-center max-w-xs w-full">
+                <h3 class="text-xs font-bold text-white mb-3 uppercase tracking-wider">Choose Promotion Piece</h3>
+                <div class="flex justify-center gap-3 text-4xl" id="promotion-options-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VICTORY / DEFEAT CELEBRATION MODAL -->
+        <div id="view-victory-modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <div class="w-full max-w-sm bg-gradient-to-b from-[#1c1916] to-[#121110] border border-emerald-500/40 p-6 rounded-2xl shadow-[0_0_50px_rgba(16,185,129,0.25)] text-center animate-bounce-short">
+                <div id="victory-icon" class="text-6xl mb-3 drop-shadow-lg">🏆</div>
+                <h3 id="victory-title" class="text-lg font-extrabold text-white mb-1 tracking-wide">Victory Grandmaster!</h3>
+                <p id="victory-subtitle" class="text-xs text-[#9e9e9e] mb-5 leading-relaxed">Checkmate delivered brilliantly. Your Elo rating has updated.</p>
+                
+                <div class="bg-[#0c0b0a] p-3 rounded-xl border border-[#282421] mb-5 flex justify-around items-center text-xs">
+                    <div>
+                        <span class="block text-[10px] text-[#716d68]">RESULT</span>
+                        <span id="stat-result-text" class="font-bold text-emerald-400">WIN</span>
+                    </div>
+                    <div class="h-6 w-px bg-[#282421]"></div>
+                    <div>
+                        <span class="block text-[10px] text-[#716d68]">NEW RATING</span>
+                        <span id="stat-new-elo" class="font-bold text-white">1225 Elo</span>
+                    </div>
+                </div>
+
+                <button onclick="closeVictoryModal()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-black font-extrabold py-3 rounded-xl text-xs transition-all shadow-[0_4px_16px_rgba(16,185,129,0.4)]">Return to Lobby</button>
+            </div>
+        </div>
+
+        <!-- VIEW 4: SETTINGS MODAL -->
+        <div id="view-settings" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="w-full max-w-sm bg-[#141210] border border-[#262320] p-6 rounded-2xl shadow-2xl">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-[#262320]">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">⚙️ Game Settings</h3>
+                    <button onclick="closeSettingsModal()" class="text-[#716d68] hover:text-white font-bold text-xs">✕</button>
+                </div>
+                <div class="space-y-4 mb-6">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-white font-medium">Audio Sound Effects</span>
+                        <input type="checkbox" id="setting-audio" checked onchange="toggleAudioSetting()" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-white font-medium">Show Square Coordinates (a-h, 1-8)</span>
+                        <input type="checkbox" id="setting-coords" checked onchange="toggleCoordsSetting()" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="text-xs text-white font-medium block mb-1.5">Board Color Theme</label>
+                        <select id="setting-theme" onchange="changeBoardTheme(this.value)" class="w-full bg-[#0c0b0a] text-slate-200 border border-[#262320] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+                            <option value="wood">Chess.com Classic Wood</option>
+                            <option value="emerald">Tournament Emerald</option>
+                            <option value="midnight">Midnight Obsidian</option>
+                            <option value="neon">Neon Cyberpunk</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="closeSettingsModal()" class="w-full bg-[#567a32] hover:bg-[#486629] text-white font-bold py-2.5 rounded-lg text-xs transition-all">Save & Close</button>
+            </div>
+        </div>
+
+        <!-- PROFILE CHANGER MODAL -->
+        <div id="view-profile" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="w-full max-w-sm bg-[#141210] border border-[#262320] p-6 rounded-2xl shadow-2xl">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-[#262320]">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">👤 Edit Profile</h3>
+                    <button onclick="closeProfileModal()" class="text-[#716d68] hover:text-white font-bold text-xs">✕</button>
+                </div>
+                <div class="space-y-4 mb-5">
+                    <div>
+                        <label class="text-xs text-white font-medium block mb-1">Player Handle</label>
+                        <input type="text" id="profile-input-name" class="w-full bg-[#0c0b0a] border border-[#262320] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium shadow-inner">
+                    </div>
+                    <div>
+                        <label class="text-xs text-white font-medium block mb-1.5">Choose Avatar Symbol</label>
+                        <div class="grid grid-cols-6 gap-2" id="avatar-selector-grid">
+                            <button onclick="selectAvatar('♔')" class="p-2 bg-[#0c0b0a] border border-[#262320] rounded-lg text-xl hover:border-emerald-500 text-white transition">♔</button>
+                            <button onclick="selectAvatar('♕')" class="p-2 bg-[#0c0b0a] border border-[#262320] rounded-lg text-xl hover:border-emerald-500 text-white transition">♕</button>
+                            <button onclick="selectAvatar('♖')" class="p-2 bg-[#0c0b0a] border border-[#262320] rounded-lg text-xl hover:border-emerald-500 text-white transition">♖</button>
+                            <button onclick="selectAvatar('♗')" class="p-2 bg-[#0c0b0a] border border-[#262320] rounded-lg text-xl hover:border-emerald-500 text-white transition">♗</button>
+                            <button onclick="selectAvatar('♘')" class="p-2 bg-[#0c0b0a] border border-[#262320] rounded-lg text-xl hover:border-emerald-500 text-white transition">♘</button>
+                            <button onclick="selectAvatar('♙')" class="p-2 bg-[#0c0b0a] border border-[#262320] rounded-lg text-xl hover:border-emerald-500 text-white transition">♙</button>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="saveProfileChanges()" class="w-full bg-[#567a32] hover:bg-[#486629] text-white font-bold py-2.5 rounded-lg text-xs transition-all">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- VIEW 5: LEADERBOARD MODAL -->
+        <div id="view-leaderboard" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="w-full max-w-md bg-[#141210] border border-[#262320] p-6 rounded-2xl shadow-2xl">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-[#262320]">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">🏆 Global Online Leaderboard</h3>
+                    <button onclick="closeGlobalLeaderboard()" class="text-[#716d68] hover:text-white font-bold text-xs">✕</button>
+                </div>
+                <div id="leaderboard-list" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    <div class="text-xs text-[#716d68] text-center py-4">Fetching leaderboard...</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Copyright -->
+    <footer class="w-full max-w-5xl mx-auto text-center text-[11px] text-[#716d68] py-3 border-t border-[#141210]">
+        Chess Arena Pro • Ultimate Production Build
+    </footer>
+
+    <!-- Script Application Logic -->
+    <script>
+        const firebaseConfig = { databaseURL: "https://chess-ranked-multiplayer-default-rtdb.firebaseio.com/" };
+        let db = null;
+        let isConnected = false;
+        let presenceRef = null;
+
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            db.ref('.info/connected').on('value', snap => {
+                isConnected = (snap.val() === true);
+                const badge = document.getElementById('connection-status');
+                if(badge) {
+                    if(isConnected) {
+                        badge.innerText = "Firebase Online Connected";
+                        badge.className = "text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium";
+                        setupOnlinePresenceTracker();
+                    } else {
+                        badge.innerText = "Offline Mode Active";
+                        badge.className = "text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium";
+                    }
+                }
+            });
+        } catch(e) { console.log("Firebase fallback mode active."); }
+
+        function setupOnlinePresenceTracker() {
+            if(!db) return;
+            db.ref('active_players').on('value', snap => {
+                const count = snap.numChildren();
+                const countEl = document.getElementById('online-players-count');
+                if(countEl) countEl.innerText = `${Math.max(1, count)} Online in Queue`;
+            });
+        }
+
+        let settings = { audioEnabled: true, showCoords: true, theme: 'wood' };
+
+        let stockfishEngine = null;
+        try {
+            stockfishEngine = typeof STOCKFISH === 'function' ? STOCKFISH() : null;
+        } catch(e) { console.log("Stockfish init fallback mode active."); }
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if(!settings.audioEnabled || !audioCtx) return;
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            let freq = 400, duration = 0.08;
+            if(type === 'capture') { freq = 220; duration = 0.12; }
+            else if(type === 'check') { freq = 680; duration = 0.15; }
+            else if(type === 'castle') { freq = 520; duration = 0.14; }
+            else if(type === 'win') { freq = 880; duration = 0.3; }
+
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        let currentUser = null;
+        let currentElo = 1200;
+        let currentAvatar = '♔';
+        let gameMode = 'offline-bot'; 
+        let currentRoomId = null;
+        let playerColor = 'white';
+        let isBoardFlipped = false;
+        let player2Name = "Guest";
+        let player2Elo = 1200;
+
+        let timeControlBase = 600; // in seconds
+        let timeControlIncrement = 0; // in seconds
+
+        let chessGame = new Chess();
+        let roomRef = null;
+        let matchmakingRef = null;
+        let matchmakingTimeout = null;
+        let isRemoteUpdate = false;
+        
+        let selectedSquare = null;
+        let possibleMoves = [];
+        let lastMove = null;
+        let pendingPromotion = null;
+        let botSkillLevel = 5;
+
+        let timerInterval = null;
+        let whiteTime = 600, blackTime = 600;
+
+        const pieceSymbols = {
+            'w': { 'p': '♙', 'r': '♖', 'n': '♘', 'b': '♗', 'q': '♕', 'k': '♔' },
+            'b': { 'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚' }
+        };
+
+        function switchView(viewName) {
+            ['view-login', 'view-lobby', 'view-game', 'view-leaderboard', 'view-offline-setup', 'view-settings', 'view-matchmaking', 'view-profile', 'view-victory-modal', 'view-promotion-modal'].forEach(v => {
+                const el = document.getElementById(v);
+                if(el && v !== 'view-victory-modal' && v !== 'view-promotion-modal') el.classList.add('hidden');
+            });
+
+            if(['view-login', 'view-lobby', 'view-game'].includes(viewName)) {
+                document.getElementById(viewName).classList.remove('hidden');
+                if(viewName === 'view-game') { render2DBoard(); startTimers(); } else { stopTimers(); }
+            } else if(viewName === 'view-leaderboard') {
+                document.getElementById('view-lobby').classList.remove('hidden');
+                document.getElementById('view-leaderboard').classList.remove('hidden');
+                fetchGlobalLeaderboard();
+            } else if(viewName === 'view-offline-setup') {
+                document.getElementById('view-lobby').classList.remove('hidden');
+                document.getElementById('view-offline-setup').classList.remove('hidden');
+            } else if(viewName === 'view-settings') {
+                document.getElementById('view-lobby').classList.remove('hidden');
+                document.getElementById('view-settings').classList.remove('hidden');
+            } else if(viewName === 'view-matchmaking') {
+                document.getElementById('view-lobby').classList.remove('hidden');
+                document.getElementById('view-matchmaking').classList.remove('hidden');
+            } else if(viewName === 'view-profile') {
+                document.getElementById('view-lobby').classList.remove('hidden');
+                document.getElementById('view-profile').classList.remove('hidden');
+                document.getElementById('profile-input-name').value = currentUser || '';
+            }
+        }
+
+        function openSettingsModal() { switchView('view-settings'); }
+        function closeSettingsModal() { switchView('view-lobby'); }
+
+        function openProfileModal() { switchView('view-profile'); }
+        function closeProfileModal() { switchView('view-lobby'); }
+        function selectAvatar(symbol) { currentAvatar = symbol; }
+        
+        function saveProfileChanges() {
+            const newName = document.getElementById('profile-input-name').value.trim();
+            if(!newName) { alert("Please provide a valid handle."); return; }
+            currentUser = newName;
+            document.getElementById('badge-name').innerText = currentUser;
+            document.getElementById('badge-avatar').innerText = currentAvatar;
+            const selfAvatarEl = document.getElementById('self-avatar');
+            if(selfAvatarEl) selfAvatarEl.innerText = currentAvatar;
+            closeProfileModal();
+        }
+
+        function toggleAudioSetting() { settings.audioEnabled = document.getElementById('setting-audio').checked; }
+        function toggleCoordsSetting() { settings.showCoords = document.getElementById('setting-coords').checked; render2DBoard(); }
+        function changeBoardTheme(themeName) { settings.theme = themeName; render2DBoard(); }
+
+        function changeTimeControl(val) {
+            const parts = val.split('|');
+            timeControlBase = parseInt(parts[0]);
+            timeControlIncrement = parseInt(parts[1]);
+        }
+
+        function toggleFlipBoard() {
+            isBoardFlipped = !isBoardFlipped;
+            render2DBoard();
+        }
+
+        function handleLogin() {
+            const usernameInput = document.getElementById('input-username');
+            if(!usernameInput) return;
+            const username = usernameInput.value.trim();
+            if(!username) { alert("Please input a valid user handle."); return; }
+            currentUser = username;
+
+            if(isConnected && db) {
+                db.ref('rankings/' + currentUser).once('value', snap => {
+                    if(snap.exists()) { currentElo = snap.val().elo || 1200; }
+                    else { currentElo = 1200; db.ref('rankings/' + currentUser).set({ elo: 1200, name: currentUser }); }
+                    
+                    presenceRef = db.ref('active_players/' + currentUser);
+                    presenceRef.set({ name: currentUser, elo: currentElo, timestamp: Date.now() });
+                    presenceRef.onDisconnect().remove();
+
+                    finalizeLogin();
+                }).catch(() => { finalizeLogin(); });
+            } else {
+                let profiles = JSON.parse(localStorage.getItem('chess_arena_profiles') || '{}');
+                if(!profiles[currentUser]) { profiles[currentUser] = 1200; localStorage.setItem('chess_arena_profiles', JSON.stringify(profiles)); }
+                currentElo = profiles[currentUser];
+                finalizeLogin();
+            }
+        }
+
+        function finalizeLogin() {
+            document.getElementById('badge-name').innerText = currentUser;
+            document.getElementById('badge-avatar').innerText = currentAvatar;
+            document.getElementById('badge-elo').innerText = currentElo;
+            document.getElementById('user-badge').classList.remove('hidden');
+            switchView('view-lobby');
+        }
+
+        function resetMatchData() {
+            whiteTime = timeControlBase;
+            blackTime = timeControlBase;
+            lastMove = null;
+            selectedSquare = null;
+            possibleMoves = [];
+            chessGame.reset();
+            document.getElementById('move-history').innerHTML = '';
+            document.getElementById('self-captured').innerHTML = '';
+            document.getElementById('opp-captured').innerHTML = '';
+            updateTimerDisplay();
+        }
+
+        function startQuickMatchmaking() {
+            if(!isConnected || !db) { alert("Firebase connection required for online quick match."); return; }
+            switchView('view-matchmaking');
+            document.getElementById('matchmaking-status-text').innerText = "Searching queue for an opponent...";
+
+            const queueRef = db.ref('matchmaking_queue');
+            const myQueueItemRef = queueRef.push();
+            matchmakingRef = myQueueItemRef;
+
+            myQueueItemRef.set({ name: currentUser, elo: currentElo, timestamp: Date.now() });
+            myQueueItemRef.onDisconnect().remove();
+
+            matchmakingTimeout = setTimeout(() => {
+                cancelMatchmaking();
+                gameMode = 'offline-bot';
+                botSkillLevel = 6;
+                playerColor = 'white';
+                isBoardFlipped = false;
+                resetMatchData();
+
+                document.getElementById('mode-badge').innerText = "Bot Match";
+                document.getElementById('self-name').innerText = currentUser;
+                document.getElementById('self-elo').innerText = currentElo;
+                document.getElementById('self-avatar').innerText = currentAvatar;
+                document.getElementById('opp-name').innerText = "GrandmasterBot_X";
+                document.getElementById('opp-elo').innerText = "1550";
+                document.getElementById('opp-avatar').innerText = "🤖";
+                document.getElementById('game-status').innerText = "Match found! Your turn (White)";
+                switchView('view-game');
+            }, 5000);
+
+            queueRef.once('value', snapshot => {
+                let foundOpponent = null;
+                snapshot.forEach(child => {
+                    if(child.key !== myQueueItemRef.key) {
+                        const val = child.val();
+                        if(!foundOpponent || val.timestamp < foundOpponent.timestamp) {
+                            foundOpponent = { id: child.key, ...val };
+                        }
+                    }
+                });
+
+                if(foundOpponent) {
+                    clearTimeout(matchmakingTimeout);
+                    currentRoomId = "MATCH-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+                    db.ref('rooms/' + currentRoomId).set({
+                        status: 'active',
+                        white: { name: foundOpponent.name, elo: foundOpponent.elo },
+                        black: { name: currentUser, elo: currentElo },
+                        fen: chessGame.fen(),
+                        turn: 'w'
+                    });
+
+                    db.ref('matchmaking_queue/' + foundOpponent.id).remove();
+                    myQueueItemRef.remove();
+
+                    playerColor = 'black';
+                    isBoardFlipped = true;
+                    resetMatchData();
+                    setupRoomListener(currentRoomId);
+                    
+                    document.getElementById('mode-badge').innerText = `Online Match`;
+                    document.getElementById('self-name').innerText = currentUser;
+                    document.getElementById('self-elo').innerText = currentElo;
+                    document.getElementById('self-avatar').innerText = currentAvatar;
+                    document.getElementById('opp-name').innerText = foundOpponent.name;
+                    document.getElementById('opp-elo').innerText = foundOpponent.elo;
+                    document.getElementById('opp-avatar').innerText = "👤";
+                    document.getElementById('game-status').innerText = "Match found! Opponent moves first.";
+                    switchView('view-game');
+                }
+            });
+        }
+
+        function cancelMatchmaking() {
+            if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
+            if(matchmakingRef) { matchmakingRef.remove(); matchmakingRef = null; }
+            if(db) db.ref('matchmaking_queue').off();
+            switchView('view-lobby');
+        }
+
+        function startBotGame() {
+            botSkillLevel = parseInt(document.getElementById('bot-difficulty').value);
+            gameMode = 'offline-bot';
+            playerColor = 'white';
+            isBoardFlipped = false;
+            resetMatchData();
+
+            document.getElementById('mode-badge').innerText = `Stockfish (Lvl ${botSkillLevel})`;
+            document.getElementById('self-name').innerText = currentUser;
+            document.getElementById('self-elo').innerText = currentElo;
+            document.getElementById('self-avatar').innerText = currentAvatar;
+            document.getElementById('opp-name').innerText = `Stockfish AI`;
+            document.getElementById('opp-elo').innerText = 1000 + (botSkillLevel * 100);
+            document.getElementById('opp-avatar').innerText = "🤖";
+            document.getElementById('game-status').innerText = "Your turn (White)";
+            switchView('view-game');
+        }
+
+        function openOfflineMultiplayerSetup() {
+            document.getElementById('p1-name-input').value = currentUser + ` (${currentElo})`;
+            document.getElementById('p2-name-input').value = "Challenger";
+            switchView('view-offline-setup');
+        }
+
+        function closeOfflineSetup() { switchView('view-lobby'); }
+
+        function startOfflineMultiplayerGame() {
+            const p2Input = document.getElementById('p2-name-input').value.trim();
+            if(!p2Input) { alert("Enter opponent name."); return; }
+
+            player2Name = p2Input; player2Elo = 1200;
+            gameMode = 'offline-multiplayer'; playerColor = 'white';
+            isBoardFlipped = false;
+            resetMatchData();
+
+            document.getElementById('mode-badge').innerText = "Local 2P Match";
+            document.getElementById('self-name').innerText = currentUser;
+            document.getElementById('self-elo').innerText = currentElo;
+            document.getElementById('self-avatar').innerText = currentAvatar;
+            document.getElementById('opp-name').innerText = player2Name;
+            document.getElementById('opp-elo').innerText = player2Elo;
+            document.getElementById('opp-avatar').innerText = "👤";
+            document.getElementById('game-status').innerText = `${currentUser}'s turn`;
+            switchView('view-game');
+        }
+
+        function createOnlineRoom() {
+            if(!isConnected || !db) { alert("Firebase connection required to create online rooms."); return; }
+            gameMode = 'online';
+            currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            playerColor = 'white';
+            isBoardFlipped = false;
+            resetMatchData();
+
+            db.ref('rooms/' + currentRoomId).set({
+                status: 'waiting',
+                white: { name: currentUser, elo: currentElo },
+                black: null,
+                fen: chessGame.fen(),
+                turn: 'w'
+            });
+
+            setupRoomListener(currentRoomId);
+            document.getElementById('mode-badge').innerText = `Room: ${currentRoomId}`;
+            document.getElementById('self-name').innerText = currentUser;
+            document.getElementById('self-elo').innerText = currentElo;
+            document.getElementById('self-avatar').innerText = currentAvatar;
+            document.getElementById('opp-name').innerText = "Waiting...";
+            document.getElementById('opp-elo').innerText = "?";
+            document.getElementById('opp-avatar').innerText = "⏳";
+            document.getElementById('game-status').innerText = "Share Room Code to begin.";
+            switchView('view-game');
+        }
+
+        function joinOnlineRoom() {
+            if(!isConnected || !db) { alert("Firebase connection required to join online rooms."); return; }
+            const roomInput = document.getElementById('input-room-code');
+            if(!roomInput) return;
+            const roomId = roomInput.value.trim().toUpperCase();
+            if(!roomId) { alert("Input room code."); return; }
+
+            db.ref('rooms/' + roomId).once('value', snap => {
+                const room = snap.val();
+                if(!room) { alert("Room not found."); return; }
+                
+                currentRoomId = roomId; gameMode = 'online'; playerColor = 'black';
+                isBoardFlipped = true;
+                resetMatchData();
+
+                db.ref('rooms/' + roomId).update({ black: { name: currentUser, elo: currentElo }, status: 'active' });
+                setupRoomListener(roomId);
+
+                document.getElementById('mode-badge').innerText = `Room: ${roomId}`;
+                document.getElementById('self-name').innerText = currentUser;
+                document.getElementById('self-elo').innerText = currentElo;
+                document.getElementById('self-avatar').innerText = currentAvatar;
+                document.getElementById('opp-name').innerText = room.white.name;
+                document.getElementById('opp-elo').innerText = room.white.elo;
+                document.getElementById('opp-avatar').innerText = "👤";
+                document.getElementById('game-status').innerText = "Match started! White moves.";
+                switchView('view-game');
+            });
+        }
+
+        function setupRoomListener(roomId) {
+            roomRef = db.ref('rooms/' + roomId);
+            roomRef.on('value', snap => {
+                const room = snap.val();
+                if(!room) return;
+
+                if(playerColor === 'white' && room.black) {
+                    document.getElementById('opp-name').innerText = room.black.name;
+                    document.getElementById('opp-elo').innerText = room.black.elo;
+                    document.getElementById('opp-avatar').innerText = "👤";
+                }
+
+                if(room.fen && room.fen !== chessGame.fen()) {
+                    isRemoteUpdate = true;
+                    chessGame.load(room.fen);
+                    render2DBoard();
+                    isRemoteUpdate = false;
+
+                    const myTurnCheck = (playerColor === 'white' && chessGame.turn() === 'w') || (playerColor === 'black' && chessGame.turn() === 'b');
+                    document.getElementById('game-status').innerText = myTurnCheck ? "Your turn to move." : "Opponent's turn...";
+                }
+            });
+        }
+
+        function startTimers() {
+            stopTimers();
+            if(timeControlBase === 0) {
+                document.getElementById('self-timer').innerText = "∞";
+                document.getElementById('opp-timer').innerText = "∞";
+                return;
+            }
+            timerInterval = setInterval(() => {
+                if(chessGame.game_over()) return;
+                if(chessGame.turn() === 'w') {
+                    whiteTime = Math.max(0, whiteTime - 1);
+                    if(whiteTime === 0) handleTimeOut('white');
+                } else {
+                    blackTime = Math.max(0, blackTime - 1);
+                    if(blackTime === 0) handleTimeOut('black');
+                }
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimers() { if(timerInterval) clearInterval(timerInterval); }
+        function formatTime(sec) { const m = Math.floor(sec / 60); const s = sec % 60; return `${m}:${s < 10 ? '0' : ''}${s}`; }
+
+        function updateTimerDisplay() {
+            if(timeControlBase === 0) return;
+            const selfTimer = document.getElementById('self-timer');
+            const oppTimer = document.getElementById('opp-timer');
+            if(!selfTimer || !oppTimer) return;
+            if(playerColor === 'white') {
+                selfTimer.innerText = formatTime(whiteTime);
+                oppTimer.innerText = formatTime(blackTime);
+            } else {
+                selfTimer.innerText = formatTime(blackTime);
+                oppTimer.innerText = formatTime(whiteTime);
+            }
+        }
+
+        function handleTimeOut(color) {
+            stopTimers();
+            const winner = color === 'white' ? 'Black' : 'White';
+            document.getElementById('game-status').innerText = `Time out! ${winner} wins on time.`;
+            playSound('win');
+            showVictoryModal(winner === 'White' ? 'w' : 'b', 'Time Out');
+        }
+
+        function updateCapturedPiecesDisplay() {
+            const counts = { w: { p:8, r:2, n:2, b:2, q:1 }, b: { p:8, r:2, n:2, b:2, q:1 } };
+            const values = { p:1, n:3, b:3, r:5, q:9, k:0 };
+            const board = chessGame.board();
+            
+            let whiteScore = 0, blackScore = 0;
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const p = board[r][c];
+                    if (p) {
+                        if (p.type !== 'k') counts[p.color][p.type]--;
+                        if (p.color === 'w') whiteScore += values[p.type];
+                        else blackScore += values[p.type];
+                    }
+                }
+            }
+
+            const formatCaptured = (color) => {
+                let str = '';
+                for (const [type, cnt] of Object.entries(counts[color])) {
+                    if (cnt > 0) str += pieceSymbols[color][type].repeat(cnt);
+                }
+                return str;
+            };
+
+            const diff = whiteScore - blackScore;
+            const whiteDiffStr = diff > 0 ? ` +${diff}` : '';
+            const blackDiffStr = diff < 0 ? ` +${Math.abs(diff)}` : '';
+
+            const oppCapEl = document.getElementById('opp-captured');
+            const selfCapEl = document.getElementById('self-captured');
+
+            if (playerColor === 'white') {
+                if(oppCapEl) oppCapEl.innerHTML = `${formatCaptured('w')}<span class="text-xs text-emerald-400 font-bold">${blackDiffStr}</span>`;
+                if(selfCapEl) selfCapEl.innerHTML = `${formatCaptured('b')}<span class="text-xs text-emerald-400 font-bold">${whiteDiffStr}</span>`;
+            } else {
+                if(oppCapEl) oppCapEl.innerHTML = `${formatCaptured('b')}<span class="text-xs text-emerald-400 font-bold">${whiteDiffStr}</span>`;
+                if(selfCapEl) selfCapEl.innerHTML = `${formatCaptured('w')}<span class="text-xs text-emerald-400 font-bold">${blackDiffStr}</span>`;
+            }
+        }
+
+        function render2DBoard() {
+            const grid = document.getElementById('chessboard-grid');
+            if(!grid) return;
+            grid.innerHTML = '';
+
+            const boardState = chessGame.board();
+
+            let darkClass = 'theme-wood-dark', lightClass = 'theme-wood-light';
+            if(settings.theme === 'emerald') { darkClass = 'theme-emerald-dark'; lightClass = 'theme-emerald-light'; }
+            else if(settings.theme === 'midnight') { darkClass = 'theme-midnight-dark'; lightClass = 'theme-midnight-light'; }
+            else if(settings.theme === 'neon') { darkClass = 'theme-neon-dark'; lightClass = 'theme-neon-light'; }
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const actualRow = isBoardFlipped ? 7 - r : r;
+                    const actualCol = isBoardFlipped ? 7 - c : c;
+                    
+                    const file = String.fromCharCode(97 + actualCol);
+                    const rank = 8 - actualRow;
+                    const squareName = file + rank;
+
+                    const isDark = (actualRow + actualCol) % 2 === 1;
+                    const squareDiv = document.createElement('div');
+                    squareDiv.className = `relative flex items-center justify-center cursor-pointer ${isDark ? darkClass : lightClass}`;
+                    squareDiv.dataset.square = squareName;
+
+                    if (selectedSquare === squareName) {
+                        squareDiv.classList.add('ring-4', 'ring-inset', 'ring-emerald-500', 'z-10');
+                    }
+
+                    if (lastMove && (lastMove.from === squareName || lastMove.to === squareName)) {
+                        squareDiv.classList.add('bg-amber-400/30');
+                    }
+
+                    if (possibleMoves.includes(squareName)) {
+                        const indicator = document.createElement('div');
+                        indicator.className = "absolute w-3.5 h-3.5 rounded-full bg-emerald-500/80 shadow-md z-20 pointer-events-none";
+                        squareDiv.appendChild(indicator);
+                    }
+
+                    if(settings.showCoords) {
+                        if(actualCol === 0) {
+                            const rankLbl = document.createElement('span');
+                            rankLbl.className = `absolute top-0.5 left-1 text-[9px] font-bold pointer-events-none ${isDark ? 'text-white/70' : 'text-black/70'}`;
+                            rankLbl.innerText = rank;
+                            squareDiv.appendChild(rankLbl);
+                        }
+                        if(actualRow === 7) {
+                            const fileLbl = document.createElement('span');
+                            fileLbl.className = `absolute bottom-0.5 right-1 text-[9px] font-bold pointer-events-none ${isDark ? 'text-white/70' : 'text-black/70'}`;
+                            fileLbl.innerText = file;
+                            squareDiv.appendChild(fileLbl);
+                        }
+                    }
+
+                    const piece = boardState[actualRow][actualCol];
+                    if (piece) {
+                        const pieceSpan = document.createElement('span');
+                        pieceSpan.className = `chess-piece ${piece.color === 'w' ? 'white-piece' : 'black-piece'}`;
+                        pieceSpan.innerText = pieceSymbols[piece.color][piece.type];
+                        squareDiv.appendChild(pieceSpan);
+                    }
+
+                    squareDiv.onclick = () => onSquareClick(squareName);
+                    grid.appendChild(squareDiv);
+                }
+            }
+            updateEvaluationBar();
+            updateCapturedPiecesDisplay();
+        }
+
+        function updateEvaluationBar() {
+            const fill = document.getElementById('eval-fill');
+            if(!fill) return;
+            let score = 0;
+            const values = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+            const board = chessGame.board();
+            for(let r=0; r<8; r++) {
+                for(let c=0; c<8; c++) {
+                    const p = board[r][c];
+                    if(p) score += (p.color === 'w' ? 1 : -1) * values[p.type];
+                }
+            }
+            let pct = 50 + (score * 3.5);
+            pct = Math.max(5, Math.min(95, pct));
+            fill.style.height = `${pct}%`;
+        }
+
+        function onSquareClick(square) {
+            if(chessGame.game_over() || isRemoteUpdate) return;
+            if(gameMode === 'online') {
+                if((playerColor === 'white' && chessGame.turn() !== 'w') || (playerColor === 'black' && chessGame.turn() !== 'b')) return;
+            }
+
+            const piece = chessGame.get(square);
+            if(selectedSquare === null) {
+                if(piece && piece.color === chessGame.turn()) {
+                    selectedSquare = square;
+                    possibleMoves = chessGame.moves({ square: square, verbose: true }).map(m => m.to);
+                    render2DBoard();
+                }
+            } else {
+                if(possibleMoves.includes(square)) {
+                    const activePiece = chessGame.get(selectedSquare);
+                    const isPawnPromotion = activePiece && activePiece.type === 'p' && (square.endsWith('8') || square.endsWith('1'));
+
+                    if (isPawnPromotion) {
+                        pendingPromotion = { from: selectedSquare, to: square };
+                        openPromotionModal(activePiece.color);
+                        return;
+                    }
+
+                    executeMove(selectedSquare, square, 'q');
+                    return;
+                }
+
+                if(piece && piece.color === chessGame.turn()) {
+                    selectedSquare = square;
+                    possibleMoves = chessGame.moves({ square: square, verbose: true }).map(m => m.to);
+                    render2DBoard();
+                } else {
+                    selectedSquare = null; possibleMoves = [];
+                    render2DBoard();
+                }
+            }
+        }
+
+        function executeMove(fromSquare, toSquare, promotionChoice) {
+            const isCapture = chessGame.get(toSquare) !== null;
+            const move = chessGame.move({ from: fromSquare, to: toSquare, promotion: promotionChoice });
+            
+            if(move) {
+                if(timeControlIncrement > 0) {
+                    if(chessGame.turn() === 'b') whiteTime += timeControlIncrement;
+                    else blackTime += timeControlIncrement;
+                }
+
+                if(isCapture || move.captured) playSound('capture');
+                else if(chessGame.in_check()) playSound('check');
+                else if(move.flags.includes('k') || move.flags.includes('q')) playSound('castle');
+                else playSound('move');
+
+                lastMove = { from: fromSquare, to: toSquare };
+                appendMoveHistory(move.san);
+                selectedSquare = null; possibleMoves = [];
+                render2DBoard();
+                handlePostMove();
+            }
+        }
+
+        function openPromotionModal(color) {
+            const container = document.getElementById('promotion-options-container');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            const pieces = ['q', 'r', 'b', 'n'];
+            pieces.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = "p-3 bg-[#0c0b0a] hover:bg-[#262320] border border-[#282421] rounded-xl text-4xl transition transform hover:scale-110";
+                btn.innerText = pieceSymbols[color][p];
+                btn.onclick = () => {
+                    document.getElementById('view-promotion-modal').classList.add('hidden');
+                    if(pendingPromotion) {
+                        executeMove(pendingPromotion.from, pendingPromotion.to, p);
+                        pendingPromotion = null;
+                    }
+                };
+                container.appendChild(btn);
+            });
+
+            document.getElementById('view-promotion-modal').classList.remove('hidden');
+        }
+
+        function undoMove() {
+            if(gameMode === 'online') { alert("Takeback is not allowed in online competitive matches."); return; }
+            if(chessGame.history().length === 0) return;
+
+            if(gameMode === 'offline-bot') {
+                chessGame.undo(); // undo bot move
+                chessGame.undo(); // undo player move
+            } else {
+                chessGame.undo(); // undo single move for local 2P
+            }
+
+            selectedSquare = null; possibleMoves = []; lastMove = null;
+            render2DBoard();
+            document.getElementById('game-status').innerText = "Move undone. Your turn.";
+        }
+
+        function requestEngineHint() {
+            if(chessGame.game_over()) return;
+            const moves = chessGame.moves({ verbose: true });
+            if(moves.length === 0) return;
+
+            const best = moves[Math.floor(Math.random() * moves.length)];
+            selectedSquare = best.from;
+            possibleMoves = [best.to];
+            render2DBoard();
+            document.getElementById('game-status').innerText = `Hint: Consider moving ${best.from} to ${best.to}`;
+        }
+
+        function handlePostMove() {
+            if(chessGame.game_over()) { handleGameOver(); return; }
+
+            if(gameMode === 'offline-bot' && chessGame.turn() === 'b') {
+                document.getElementById('game-status').innerText = "Stockfish AI is calculating...";
+                setTimeout(makeStockfishMove, 400);
+            } else if(gameMode === 'offline-multiplayer') {
+                const activeName = chessGame.turn() === 'w' ? currentUser : player2Name;
+                document.getElementById('game-status').innerText = `${activeName}'s turn`;
+            } else if(gameMode === 'online' && roomRef) {
+                document.getElementById('game-status').innerText = "Waiting for opponent move...";
+                roomRef.update({ fen: chessGame.fen(), turn: chessGame.turn() });
+            }
+        }
+
+        function makeStockfishMove() {
+            if(chessGame.game_over()) return;
+            if(stockfishEngine) {
+                stockfishEngine.onmessage = function(event) {
+                    const line = event.data || event;
+                    if (typeof line === 'string' && line.startsWith('bestmove')) {
+                        const bestMove = line.split(' ')[1];
+                        if (bestMove) {
+                            const from = bestMove.substring(0, 2);
+                            const to = bestMove.substring(2, 4);
+                            const promotion = bestMove.length > 4 ? bestMove[4] : 'q';
+                            
+                            const isCapture = chessGame.get(to) !== null;
+                            const move = chessGame.move({ from, to, promotion });
+                            if(move) {
+                                if(isCapture || move.captured) playSound('capture');
+                                else if(chessGame.in_check()) playSound('check');
+                                else playSound('move');
+
+                                lastMove = { from, to };
+                                render2DBoard();
+                                appendMoveHistory(move.san);
+                            }
+                            if(chessGame.game_over()) handleGameOver();
+                            else document.getElementById('game-status').innerText = "Your turn to move.";
+                        }
+                    }
+                };
+                stockfishEngine.postMessage('position fen ' + chessGame.fen());
+                stockfishEngine.postMessage('go depth ' + Math.min(botSkillLevel, 10));
+            } else {
+                const moves = chessGame.moves({ verbose: true });
+                if(moves.length === 0) return;
+                const chosen = moves[Math.floor(Math.random() * moves.length)];
+                const move = chessGame.move({ from: chosen.from, to: chosen.to, promotion: 'q' });
+                lastMove = { from: chosen.from, to: chosen.to };
+                render2DBoard();
+                appendMoveHistory(move.san);
+                if(chessGame.game_over()) handleGameOver();
+                else document.getElementById('game-status').innerText = "Your turn to move.";
+            }
+        }
+
+        function appendMoveHistory(san) {
+            const history = document.getElementById('move-history');
+            if(!history) return;
+            const item = document.createElement('div');
+            item.className = "text-[#9e9e9e]";
+            item.innerText = `• ${san}`;
+            history.appendChild(item);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function handleGameOver() {
+            stopTimers();
+            playSound('win');
+            let winnerSide = null;
+
+            if(chessGame.in_checkmate()) {
+                winnerSide = chessGame.turn() === 'w' ? 'b' : 'w';
+                const winnerName = winnerSide === 'w' ? currentUser : (gameMode === 'offline-multiplayer' ? player2Name : "Stockfish AI");
+                document.getElementById('game-status').innerText = `Checkmate! ${winnerName} wins.`;
+            } else if(chessGame.in_draw() || chessGame.in_stalemate()) {
+                winnerSide = 'draw';
+                document.getElementById('game-status').innerText = "Draw game position.";
+            }
+
+            if(gameMode === 'offline-bot') {
+                if(winnerSide === 'w') {
+                    currentElo += (botSkillLevel * 5);
+                    showVictoryModal('w', 'Checkmate Victory');
+                } else if(winnerSide === 'b') {
+                    currentElo = Math.max(100, currentElo - 15);
+                    showVictoryModal('b', 'Defeat');
+                } else {
+                    showVictoryModal('draw', 'Draw Game');
+                }
+                
+                document.getElementById('badge-elo').innerText = currentElo;
+                document.getElementById('self-elo').innerText = currentElo;
+                
+                if(isConnected && db && currentUser) {
+                    db.ref('rankings/' + currentUser).update({ elo: currentElo });
+                }
+            } else {
+                showVictoryModal(winnerSide, 'Match Complete');
+            }
+        }
+
+        function showVictoryModal(winnerSide, reason) {
+            const modal = document.getElementById('view-victory-modal');
+            const iconEl = document.getElementById('victory-icon');
+            const titleEl = document.getElementById('victory-title');
+            const subtitleEl = document.getElementById('victory-subtitle');
+            const resultText = document.getElementById('stat-result-text');
+            const newEloText = document.getElementById('stat-new-elo');
+
+            if(!modal) return;
+
+            const isUserWinner = (winnerSide === 'w' && playerColor === 'white') || (winnerSide === 'b' && playerColor === 'black') || (winnerSide === 'w' && gameMode === 'offline-bot');
+
+            if(winnerSide === 'draw') {
+                iconEl.innerText = "🤝";
+                titleEl.innerText = "Match Drawn";
+                subtitleEl.innerText = `Ended by ${reason}. Well played by both players.`;
+                resultText.innerText = "DRAW";
+                resultText.className = "font-bold text-amber-400";
+            } else if(isUserWinner) {
+                iconEl.innerText = "🏆";
+                titleEl.innerText = "Brilliant Victory!";
+                subtitleEl.innerText = `Stunning performance via ${reason}.`;
+                resultText.innerText = "VICTORY";
+                resultText.className = "font-bold text-emerald-400";
+            } else {
+                iconEl.innerText = "🛡️";
+                titleEl.innerText = "Valiant Defeat";
+                subtitleEl.innerText = `Opponent secured victory via ${reason}.`;
+                resultText.innerText = "DEFEAT";
+                resultText.className = "font-bold text-rose-400";
+            }
+
+            newEloText.innerText = `${currentElo} Elo`;
+            modal.classList.remove('hidden');
+        }
+
+        function closeVictoryModal() {
+            const modal = document.getElementById('view-victory-modal');
+            if(modal) modal.classList.add('hidden');
+            leaveGame();
+        }
+
+        function copyFEN() { navigator.clipboard.writeText(chessGame.fen()); alert("FEN notation copied!"); }
+        function copyPGN() { navigator.clipboard.writeText(chessGame.pgn()); alert("PGN game record copied!"); }
+        function offerDraw() { if(confirm("Offer draw?")) { alert("Match drawn by agreement."); leaveGame(); } }
+        function leaveGame() { stopTimers(); if(roomRef) roomRef.remove(); cancelMatchmaking(); switchView('view-lobby'); }
+        function openGlobalLeaderboard() { switchView('view-leaderboard'); }
+        function closeGlobalLeaderboard() { switchView('view-lobby'); }
+
+        function fetchGlobalLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            if(!list) return;
+            list.innerHTML = `<div class="text-xs text-[#716d68] text-center py-4">Fetching leaderboard...</div>`;
+
+            if(isConnected && db) {
+                db.ref('rankings').orderByChild('elo').once('value', snap => {
+                    list.innerHTML = '';
+                    const rankings = [];
+                    snap.forEach(child => rankings.push(child.val()));
+                    rankings.sort((a, b) => b.elo - a.elo);
+
+                    if(rankings.length === 0) {
+                        list.innerHTML = `<div class="text-xs text-[#716d68] text-center py-4">No online players found.</div>`;
+                        return;
+                    }
+
+                    rankings.forEach((player, idx) => {
+                        const row = document.createElement('div');
+                        row.className = "flex justify-between items-center bg-[#0c0b0a] p-2.5 rounded-lg border border-[#262320] text-xs";
+                        row.innerHTML = `<span class="font-bold text-white">#${idx+1} ${player.name}</span> <span class="text-emerald-400 font-bold">${player.elo} Elo</span>`;
+                        list.appendChild(row);
+                    });
+                }).catch(() => {
+                    list.innerHTML = `<div class="text-xs text-rose-400 text-center py-4">Failed to load ratings list.</div>`;
+                });
+            } else {
+                list.innerHTML = `<div class="text-xs text-amber-400 text-center py-4">Offline mode: Firebase database unavailable.</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
